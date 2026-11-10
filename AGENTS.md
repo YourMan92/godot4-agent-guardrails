@@ -1,0 +1,62 @@
+<!-- godot4-agent-guardrails (MIT). Same content as .cursor/rules/godot4-api-accuracy.mdc, for agents that read AGENTS.md. -->
+
+# Godot 4 API accuracy (always on)
+
+This project targets **Godot 4.3+** (check `config/features` in `project.godot`). Your training data is full of Godot 3 code. Treat any API you remember as **unverified** until checked.
+
+## Verify before you write
+
+If you're not certain an API exists with that exact name and signature, look it up before using it:
+
+- Class reference: `https://docs.godotengine.org/en/stable/classes/class_<lowercase_name>.html`
+  (e.g. `class_characterbody2d.html`). Use `/en/4.3/`, `/en/4.4/`... if the project pins an older version.
+- Or have the user check the editor's built-in help (F1 → Search Help), which always matches their installed version.
+
+If you can't confirm it, **don't use it**. Tell the user and choose a documented alternative.
+
+## Godot 3 → Godot 4: never write the left column
+
+| Godot 3 (wrong) | Godot 4 (right) |
+|---|---|
+| `KinematicBody2D` / `KinematicBody` | `CharacterBody2D` / `CharacterBody3D` |
+| `velocity = move_and_slide(velocity, Vector2.UP)` | set `velocity`, call `move_and_slide()` (no args); `up_direction` is a property |
+| `yield(obj, "signal")` | `await obj.signal` |
+| `onready var`, `export var`, `tool` | `@onready var`, `@export var`, `@tool` |
+| `export(int, 0, 10) var x` | `@export_range(0, 10) var x: int` |
+| `var x setget set_x, get_x` | `var x: int: set = set_x, get = get_x` or inline `set(value):` blocks |
+| `connect("pressed", self, "_on_pressed")` | `pressed.connect(_on_pressed)` |
+| `emit_signal("died")` | `died.emit()` |
+| `scene.instance()` | `scene.instantiate()` |
+| `extends Reference` | `extends RefCounted` |
+| `Spatial`, `Position2D`, `Sprite`, `AnimatedSprite` | `Node3D`, `Marker2D`, `Sprite2D`, `AnimatedSprite2D` |
+| `YSort` node | `y_sort_enabled = true` on any Node2D |
+| `VisibilityNotifier2D` | `VisibleOnScreenNotifier2D` |
+| `Navigation2D` | `NavigationRegion2D` + `NavigationAgent2D` |
+| `TileMap` (deprecated in 4.3) | `TileMapLayer` (one node per layer) |
+| `ParallaxBackground` (still works) | `Parallax2D` (4.3+) |
+| `Tween.new()` node | `var t := create_tween()` |
+| `File.new()`, `Directory.new()` | `FileAccess.open()`, `DirAccess.open()` |
+| `get_tree().change_scene("res://x.tscn")` | `get_tree().change_scene_to_file("res://x.tscn")` |
+| `rand_range`, `deg2rad`, `stepify`, `range_lerp` | `randf_range`, `deg_to_rad`, `snapped`, `remap` |
+| `to_json`, `parse_json` | `JSON.stringify`, `JSON.parse_string` |
+| `OS.get_ticks_msec()` | `Time.get_ticks_msec()` |
+| `OS.window_size` | `get_window().size` / `DisplayServer` |
+| `Engine.editor_hint` | `Engine.is_editor_hint()` |
+| `array.empty()` | `array.is_empty()` |
+| `PoolStringArray`, `PoolRealArray` | `PackedStringArray`, `PackedFloat32Array` |
+| `rect_min_size`, `rect_position` (Control) | `custom_minimum_size`, `position` |
+| `BUTTON_LEFT` | `MOUSE_BUTTON_LEFT` |
+| `remote func`, `master func` | `@rpc("any_peer")`, `@rpc("authority")` |
+| `funcref(obj, "m")` | `obj.m` (Callable) or a lambda `func(): ...` |
+| `ProjectSettings.get_setting("physics/2d/default_gravity")` (works, but) | prefer `get_gravity()` on PhysicsBody2D (4.3+); respects Area2D gravity |
+
+## Common hallucinations to avoid
+
+- `CharacterBody2D.jump()`, `is_grounded()`, `apply_gravity()`: these don't exist. Use `is_on_floor()` and edit `velocity`.
+- `Input.get_vector` exists (4 actions → Vector2); `Input.get_axis` exists (2 actions → float). `Input.get_direction()` does **not**.
+- `Node.find_node()` was replaced by `find_child()`.
+- `AudioStreamPlayer.play_sound()` doesn't exist; use `stream = ...` then `play()`.
+- `Signal` objects have `connect`, `disconnect`, `emit`, `is_connected`. There is no `Signal.once()`; use `connect(cb, CONNECT_ONE_SHOT)`.
+- Don't write `uid://...` values by hand.
+
+After writing code, run `godot --headless --path . --script res://tools/godot4_lint.gd`.
